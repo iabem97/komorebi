@@ -1,4 +1,5 @@
 //
+//  Copyright (C) 2020 Komorebi Team Authors
 //  Copyright (C) 2016-2017 Abraham Masri
 //
 //  This program is free software: you can redistribute it and/or modify
@@ -26,7 +27,8 @@ namespace Komorebi {
 
         // We're not supporting Wayland at the moment
         // due to some restrictions
-        if(Environment.get_variable ("XDG_SESSION_DESKTOP").contains("wayland")) {
+        if(Environment.get_variable ("XDG_SESSION_TYPE").contains("wayland") ||
+            Environment.get_variable ("WAYLAND_DISPLAY") != null) {
             return false;
         }
 
@@ -35,10 +37,13 @@ namespace Komorebi {
 
     public static void main (string [] args) {
 
-        print("Welcome to Komorebi\n");
+        string package_name = Config.package_name;
+        string package_version = Config.package_version;
+
+        print(@"Welcome to $package_name\n");
 
         if(args[1] == "--version" || args[1] == "version") {
-            print("Version: 2.1 - Summit\nCreated by: Abraham Masri @cheesecakeufo\n\n");
+            print(@"Version: $package_version\nMaintained by: Komorebi Team\n\n");
             return;
         }
 
@@ -62,7 +67,7 @@ namespace Komorebi {
         Gtk.Settings.get_default().gtk_application_prefer_dark_theme = true;
 
         var screen = Gdk.Screen.get_default ();
-        int monitorCount = screen.get_n_monitors();
+        int monitorCount = hasArg("--single-screen", args) ? 1 : screen.get_n_monitors();
 
 
         initializeClipboard(screen);

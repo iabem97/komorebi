@@ -1,4 +1,5 @@
 //
+//  Copyright (C) 2020 Komorebi Team Authors
 //  Copyright (C) 2016-2017 Abraham Masri
 //
 //  This program is free software: you can redistribute it and/or modify
@@ -39,7 +40,7 @@ namespace WallpaperCreator.OnScreen {
 
         Label chooseFileLabel = new Label("Where is the image located?");
         Box locationBox = new Box(Orientation.HORIZONTAL, 10);
-        Entry locationEntry = new Entry() { placeholder_text = "/Users/cheesecakeufo/my_picture.jpg" };
+        Entry locationEntry = new Entry() { placeholder_text = "~/Pictures/my_picture.jpg" };
         FileChooserButton chooseFileButton = new FileChooserButton("Choose File", Gtk.FileChooserAction.OPEN);
 
         Revealer revealer = new Revealer();
@@ -67,7 +68,7 @@ namespace WallpaperCreator.OnScreen {
             titleLabel.halign = Align.START;
 
             titleLabel.set_markup("<span font='Lato Light 30px' color='white'>Komorebi Wallpaper Creator</span>");
-            aboutLabel.set_markup("<span font='Lato Light 15px' color='white'>by Abraham Masri @cheesecakeufo</span>");
+            aboutLabel.set_markup("<span font='Lato Light 15px' color='white'>by Komorebi Team</span>");
 
             aboutLabel.halign = Align.START;
 
@@ -86,7 +87,7 @@ namespace WallpaperCreator.OnScreen {
 
             chooseThumbnailButton.set_filter (imageFilter);
             chooseThumbnailButton.width_chars = 10;
-            
+
             locationEntry.set_sensitive(false);
 
             // Signals
@@ -105,11 +106,11 @@ namespace WallpaperCreator.OnScreen {
 
                     chooseFileButton.set_filter (imageFilter);
                     chooseFileLabel.label = "Where is the image located?";
-                    locationEntry.placeholder_text = "/Users/cheesecakeufo/my_picture.jpg";
+                    locationEntry.placeholder_text = "~/Pictures/my_picture.jpg";
                     locationEntry.set_sensitive(false);
-                 
+
                     revealer.set_reveal_child(false);
-                
+
                     chooseFileButton.show();
 
                 } else if(wallpaperType == "web_page") {
@@ -120,18 +121,18 @@ namespace WallpaperCreator.OnScreen {
                     locationEntry.set_sensitive(true);
 
                     revealer.set_reveal_child(true);
-                
+
                     chooseFileButton.hide();
 
                 } else {
 
                     chooseFileButton.set_filter (videoFilter);
                     chooseFileLabel.label = "Where is the video located?";
-                    locationEntry.placeholder_text = "/Users/cheesecakeufo/my_video.mp4";
+                    locationEntry.placeholder_text = "~/my_video.mp4";
                     locationEntry.set_sensitive(false);
-                    
+
                     revealer.set_reveal_child(true);
-                 
+
                     chooseFileButton.show();
                 }
 
@@ -151,7 +152,8 @@ namespace WallpaperCreator.OnScreen {
 
             locationEntry.changed.connect(() => {
 
-                if(locationEntry.text.length <= 0 || !locationEntry.text.contains("http"))
+                if(locationEntry.text.length <= 0 || !(locationEntry.text.contains("://")
+                && (locationEntry.text.has_prefix("http") || locationEntry.text.has_prefix("file"))))
                     webPageUrl = null;
                 else
                     webPageUrl = locationEntry.text;
@@ -160,7 +162,7 @@ namespace WallpaperCreator.OnScreen {
             titleBox.add(titleLabel);
             titleBox.add(aboutLabel);
 
-            aboutGrid.attach(new Image.from_file("/System/Resources/Komorebi/wallpaper_creator.svg"), 0, 0, 1, 1);
+            aboutGrid.attach(new Image.from_resource("/org/komorebi-team/komorebi/wallpaper_creator.svg"), 0, 0, 1, 1);
             aboutGrid.attach(titleBox, 1, 0, 1, 1);
 
             thumbnailBox.add(chooseThumbnailLabel);
@@ -180,7 +182,7 @@ namespace WallpaperCreator.OnScreen {
 
             add(chooseFileLabel);
             add(locationBox);
-            
+
             add(revealer);
         }
     }

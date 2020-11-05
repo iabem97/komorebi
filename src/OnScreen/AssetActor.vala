@@ -1,4 +1,5 @@
 //
+//  Copyright (C) 2020 Komorebi Team Authors
 //  Copyright (C) 2015-2018 Abraham Masri @cheesecakeufo
 //
 //  This program is free software: you can redistribute it and/or modify it
@@ -40,6 +41,8 @@ namespace Komorebi.OnScreen {
 
         public void setAsset() {
 
+            string package_datadir = Config.package_datadir;
+
             if(!assetVisible) {
                 pixbuf = null;
                 image.set_data (pixbuf.get_pixels(), pixbuf.has_alpha ? Cogl.PixelFormat.RGBA_8888 : Cogl.PixelFormat.RGB_888,
@@ -54,7 +57,7 @@ namespace Komorebi.OnScreen {
             if(assetHeight <= 0)
                 assetHeight = screenHeight;
 
-            var assetPath = @"/System/Resources/Komorebi/$wallpaperName/assets.png";
+            var assetPath = @"$package_datadir/$wallpaperName/assets.png";
 
             // make sure the asset exists
             if(!File.new_for_path(assetPath).query_exists()) {
@@ -177,9 +180,9 @@ namespace Komorebi.OnScreen {
             if(wallpaperType == "video" ||
                 wallpaperType == "web_page" ||
                 assetAnimationMode == "noanimation") {
-                
+
                 if(assetAnimationTimeout > 0) {
-                
+
                     Source.remove(assetAnimationTimeout);
                     assetAnimationTimeout = 0;
                 }

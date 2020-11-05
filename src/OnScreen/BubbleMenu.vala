@@ -1,4 +1,5 @@
 //
+//  Copyright (C) 2020 Komorebi Team Authors
 //  Copyright (C) 2015-2016 Abraham Masri @cheesecakeufo
 //
 //  This program is free software: you can redistribute it and/or modify it
@@ -81,6 +82,19 @@ namespace Komorebi.OnScreen {
 			copyMenuItem = new BubbleMenuItem("Copy Path");
 			makeAliasMenuItem = new BubbleMenuItem("Make Alias");
 			getInfoMenuItem = new BubbleMenuItem("Get Info");
+
+			add_child(moveToTrashMenuItem);
+			add_child(copyMenuItem);
+			// add_child(makeAliasMenuItem);
+			add_child(getInfoMenuItem);
+			add_child(newFolderMenuItem);
+			add_child(pasteMenuItem);
+			add_child(refreshMenuItem);
+			add_child(changeWallpaperMenuItem);
+			add_child(preferencesMenuItem);
+
+			foreach(Clutter.Actor child in get_children())
+				child.visible = false;
 
 			// Signals
 			signalsSetup();
@@ -187,10 +201,9 @@ namespace Komorebi.OnScreen {
 
 			if(menuType == MenuType.ICON) {
 
-				add_child(moveToTrashMenuItem);
-				add_child(copyMenuItem);
-				// add_child(makeAliasMenuItem);
-				add_child(getInfoMenuItem);
+				moveToTrashMenuItem.visible = true;
+				copyMenuItem.visible = true;
+				getInfoMenuItem.visible = true;
 
 			} else {
 
@@ -212,28 +225,22 @@ namespace Komorebi.OnScreen {
 
 				// Hide 'New Folder' and 'Paste' item if we're not showing icons
 				if(showDesktopIcons) {
-					add_child(newFolderMenuItem);
-					add_child(pasteMenuItem);
+					newFolderMenuItem.visible = true;
+					pasteMenuItem.visible = true;
 				}
 
 				// If we have a web page wallpaper, show the 'refresh wallpaper' menu item
 				if(wallpaperType == "web_page")
-					add_child(refreshMenuItem);
+					refreshMenuItem.visible = true;
 
-				add_child(changeWallpaperMenuItem);
-				add_child(preferencesMenuItem);
+				changeWallpaperMenuItem.visible = true;
+				preferencesMenuItem.visible = true;
 
 			}
 
 			// Make sure we don't display off the screen
-			if(x + 15 < 0) {
-				x = 0;
-			} else if (x >= screenWidth - width) {
-				x -= width + 15;
-			}
-
-			if((y + height) >= parent.mainActor.height)
-				y -= (height + 10);
+			x = double.min(x, screenWidth - (width + 15 * 2));
+			y = double.min(y, parent.mainActor.height - (height + 15 * 2));
 
 			opacity = 0;
 			this.x = (float)x;
@@ -258,7 +265,8 @@ namespace Komorebi.OnScreen {
 			set_easing_mode (Clutter.AnimationMode.EASE_IN_SINE);
 			restore_easing_state ();
 
-			remove_all_children();
+			foreach(Clutter.Actor child in get_children())
+				child.visible = false;
 
 			// Undim all icon
 			foreach (var icon in parent.desktopIcons.iconsList)

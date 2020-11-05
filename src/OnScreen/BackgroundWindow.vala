@@ -1,4 +1,5 @@
 //
+//  Copyright (C) 2020 Komorebi Team Authors
 //  Copyright (C) 2017-2018 Abraham Masri @cheesecakeufo
 //
 //  This program is free software: you can redistribute it and/or modify
@@ -37,6 +38,12 @@ namespace Komorebi.OnScreen {
 	// Global - Enable Video Wallpapers
 	bool enableVideoWallpapers;
 
+	// Global - Mute Playback of video
+	bool mutePlayback;
+
+	// Global - Pause Playback when unfocused
+	bool pausePlayback;
+
 	// Global - Whether we can open preferences window
 	bool canOpenPreferences = true;
 
@@ -59,7 +66,7 @@ namespace Komorebi.OnScreen {
 		public Clutter.Actor mainActor { get; private set; }
 
 		// Video Wallpaper
-		ClutterGst.Playback videoPlayback;
+		public ClutterGst.Playback videoPlayback { get; private set; }
 		ClutterGst.Content videoContent;
 
 		// Wallpaper pixbuf & image
@@ -112,14 +119,14 @@ namespace Komorebi.OnScreen {
 				videoPlayback.set_seek_flags (ClutterGst.SeekFlags.ACCURATE);
 
 				videoContent.player = videoPlayback;
-
+				if (mutePlayback) {
+					muteVolume();
+				}
 				videoPlayback.notify["progress"].connect(() => {
-
 					if(videoPlayback.progress >= 1.0 && wallpaperType == "video") {
 						videoPlayback.progress = 0.0;
 						videoPlayback.playing = true;
 					}
-
 				});
 			}
 
@@ -158,9 +165,17 @@ namespace Komorebi.OnScreen {
 			// add the widgets
 			add(embed);
 
-			initializeConfigFile(); 
+			initializeConfigFile();
 			signalsSetup();
 
+		}
+
+		public void muteVolume() {
+			videoContent.get_player().set_audio_volume(0.0);
+		}
+
+		public void unmuteVolume() {
+			videoContent.get_player().set_audio_volume(1.0);
 		}
 
 		void getMonitorSize(int monitorIndex) {
@@ -173,6 +188,7 @@ namespace Komorebi.OnScreen {
 			screenHeight = rectangle.height;
 			screenWidth = rectangle.width;
 
+			set_gravity(Gravity.STATIC);
 			move(rectangle.x, rectangle.y);
 
 		}
@@ -194,8 +210,8 @@ namespace Komorebi.OnScreen {
 					if(bubbleMenu.opacity > 0)
 						return false;
 
-					if(desktopIcons != null)
-						if(e.x >= desktopIcons.x && e.x <= (desktopIcons.x + desktopIcons.width) && 
+					if(desktopIcons != null && showDesktopIcons)
+						if(e.x >= desktopIcons.x && e.x <= (desktopIcons.x + desktopIcons.width) &&
 							e.y >= desktopIcons.y && e.y <= (desktopIcons.y + desktopIcons.height))
 							return false;
 
@@ -232,6 +248,9 @@ namespace Komorebi.OnScreen {
 
 			focus_out_event.connect(() => {
 
+				if (pausePlayback) {
+					videoPlayback.playing = false;
+				}
 				// Hide the bubble menu
 				if(bubbleMenu.opacity > 0) {
 					bubbleMenu.fadeOut();
@@ -239,6 +258,13 @@ namespace Komorebi.OnScreen {
 					return true;
 				}
 
+				return true;
+			});
+
+			focus_in_event.connect(() => {
+				if (pausePlayback) {
+					videoPlayback.playing = true;
+				}
 				return true;
 			});
 
@@ -280,7 +306,7 @@ namespace Komorebi.OnScreen {
 			setWallpaper();
 
 			if(desktopIcons != null) {
-			
+
 				if(!showDesktopIcons)
 					desktopIcons.fadeOut();
 				else
@@ -288,12 +314,12 @@ namespace Komorebi.OnScreen {
 			}
 
 			if(dateTimeVisible) {
-			
+
 				if(dateTimeAlwaysOnTop)
 					mainActor.set_child_above_sibling(dateTimeBox, assetActor);
 				else
 					mainActor.set_child_below_sibling(dateTimeBox, assetActor);
-				
+
 				dateTimeBox.setDateTime();
 
 			} else
@@ -307,6 +333,8 @@ namespace Komorebi.OnScreen {
 
 		void setWallpaper() {
 
+			string package_datadir = Config.package_datadir;
+
 			var scaleWidth = screenWidth;
 			var scaleHeight = screenHeight;
 
@@ -318,23 +346,23 @@ namespace Komorebi.OnScreen {
 			} else {
 
 				wallpaperActor.scale_y = 1.00f;
-				wallpaperActor.scale_x = 1.00f;   
+				wallpaperActor.scale_x = 1.00f;
 			}
 
 			if(enableVideoWallpapers) {
-				
+
 				if(wallpaperType == "video") {
 
-					var videoPath = @"file:///System/Resources/Komorebi/$wallpaperName/$videoFileName";
+					var videoPath = @"file:///$wallpaperPath/$videoFileName";
 					videoPlayback.uri = videoPath;
 					videoPlayback.playing = true;
 
 					wallpaperActor.set_content(videoContent);
 
 					return;
-				
+
 				} else {
-				
+
 					videoPlayback.playing = false;
 					videoPlayback.uri = "";
 				}
@@ -361,8 +389,7 @@ namespace Komorebi.OnScreen {
 
 			wallpaperActor.set_content(wallpaperImage);
 
-			wallpaperPixbuf = new Gdk.Pixbuf.from_file_at_scale(@"/System/Resources/Komorebi/$wallpaperName/wallpaper.jpg",
-																scaleWidth, scaleHeight, false);
+			wallpaperPixbuf = new Gdk.Pixbuf.from_file_at_scale(@"$wallpaperPath/wallpaper.jpg", scaleWidth, scaleHeight, false);
 
 			wallpaperImage.set_data (wallpaperPixbuf.get_pixels(), Cogl.PixelFormat.RGB_888,
 							 wallpaperPixbuf.get_width(), wallpaperPixbuf.get_height(),
@@ -394,7 +421,7 @@ namespace Komorebi.OnScreen {
 			if(assetVisible)
 				assetActor.opacity = 255;
 			dateTimeBox.fadeIn(200);
-			
+
 			if(desktopIcons != null) {
 				if(!showDesktopIcons)
 					desktopIcons.fadeOut();

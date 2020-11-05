@@ -2,10 +2,10 @@
 Name=Wallpaper Creator
 Comment=Create wallpapers for Komorebi
 Keywords=wallpaper; settings; preferences;
-Icon=/System/Resources/Komorebi/wallpaper_creator.svg
-Exec=/System/Applications/komorebi-wallpaper-creator
+Icon=@datadir@/pixmaps/@projectname@/wallpaper_creator.svg
+Exec=@bindir@/@projectname@-wallpaper-creator
 Terminal=false
 Type=Application
 StartupNotify=true
-Categories=GNOME;GTK;System;
+Categories=GNOME;GTK;Settings;DesktopSettings;
 X-GNOME-Autostart-enabled=false

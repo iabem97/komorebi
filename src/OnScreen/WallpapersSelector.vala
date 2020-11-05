@@ -1,19 +1,20 @@
-//  
+//
+//  Copyright (C) 2020 Komorebi Team Authors
 //  Copyright (C) 2017-2018 Abraham Masri @cheesecakeufo
 //
 //  This program is free software: you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
 //  the Free Software Foundation, either version 3 of the License, or
 //  (at your option) any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful,
 //  but WITHOUT ANY WARRANTY; without even the implied warranty of
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details.
-// 
+//
 //  You should have received a copy of the GNU General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-// 
+//
 
 using Gtk;
 using Gdk;
@@ -24,7 +25,7 @@ namespace Komorebi.OnScreen {
 
 	public class WallpapersSelector : ScrolledWindow {
 
-		public string path = "/System/Resources/Komorebi/";
+		public string path = Config.package_datadir + "/"; // Komorebi can't find wallpapers if this variable doesn't have a trailing slash. Hacky, but it works. Fix later on.
 
 		Gtk.Grid grid = new Grid();
 
@@ -55,50 +56,54 @@ namespace Komorebi.OnScreen {
 			// create_new_thumbnail.clicked.connect(() => wallpaperChanged());
 
 			// addThumbnail(create_new_thumbnail);
-			// thumbnailsList.append(create_new_thumbnail); 
-			
+			// thumbnailsList.append(create_new_thumbnail);
+
 			add(grid);
 		}
 
 
 		public void getWallpapers () {
 
+			string package_datadir = Config.package_datadir;
+
 			clearGrid();
 
 			foreach(var thumbnail in thumbnailsList)
 				thumbnailsList.remove(thumbnail);
 
-			File wallpapersFolder = File.new_for_path("/System/Resources/Komorebi");
+			foreach(var path in Komorebi.Paths.getWallpaperPaths()) {
+				File wallpapersFolder = File.new_for_path(path);
 
-			try {
+				try {
 
-				var enumerator = wallpapersFolder.enumerate_children ("standard::*", FileQueryInfoFlags.NOFOLLOW_SYMLINKS);
+					var enumerator = wallpapersFolder.enumerate_children ("standard::*", FileQueryInfoFlags.NOFOLLOW_SYMLINKS);
 
-				FileInfo info;
+					FileInfo info;
 
-				while ((info = enumerator.next_file ()) != null)
-					if (info.get_file_type () == FileType.DIRECTORY) {
+					while ((info = enumerator.next_file ()) != null)
+						if (info.get_file_type () == FileType.DIRECTORY) {
 
-						var name = info.get_name();
-						var fullPath = path + name;
+							var name = info.get_name();
+							var fullPath = GLib.Path.build_filename(path, name);
 
-						// Check if we have a valid wallpaper
-						if (File.new_for_path(fullPath + "/wallpaper.jpg").query_exists() &&
-							File.new_for_path(fullPath + "/config").query_exists()) {
+							// Check if we have a valid wallpaper
+							if (File.new_build_filename(fullPath, "wallpaper.jpg").query_exists() &&
+								File.new_build_filename(fullPath, "config").query_exists()) {
 
-							var thumbnail = new Thumbnail(path, name);
-							
-							// Signals
-							thumbnail.clicked.connect(() => wallpaperChanged());
+								var thumbnail = new Thumbnail(path, name);
 
-							addThumbnail(thumbnail);
-							thumbnailsList.append(thumbnail); 
-						} else
-							print(@"[WARNING]: Found an invalid wallpaper with name: $name \n");
-					}
+								// Signals
+								thumbnail.clicked.connect(() => wallpaperChanged());
 
-			} catch {
-				print("Could not read directory '/System/Resources/Komorebi/'");
+								addThumbnail(thumbnail);
+								thumbnailsList.append(thumbnail);
+							} else
+								print(@"[WARNING]: Found an invalid wallpaper with name: $name \n");
+						}
+
+				} catch {
+					print(@"Could not read directory '$path'");
+				}
 			}
 		}
 

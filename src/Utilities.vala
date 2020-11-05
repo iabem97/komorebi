@@ -1,4 +1,5 @@
 //
+//  Copyright (C) 2020 Komorebi Team Authors
 //  Copyright (C) 2012-2017 Abraham Masri
 //
 //  This program is free software: you can redistribute it and/or modify
@@ -24,6 +25,7 @@ using GLib;
 using Cairo;
 
 using Komorebi.OnScreen;
+using Komorebi.Paths;
 
 namespace Komorebi.Utilities {
 
@@ -68,7 +70,7 @@ namespace Komorebi.Utilities {
 
 	// Wallpaper variables
 	KeyFile wallpaperKeyFile;
-
+	string wallpaperPath;
 	string wallpaperType;
 	string videoFileName;
 	string webPageUrl;
@@ -91,7 +93,7 @@ namespace Komorebi.Utilities {
 	int assetMarginLeft;
 	int assetMarginBottom;
 
-
+	bool autostart;
 
 	/* Returns an icon detected from file, IconTheme, etc .. */
 	public Pixbuf getIconFrom (string icon, int size) {
@@ -168,9 +170,12 @@ namespace Komorebi.Utilities {
 		timeTwentyFour = true;
 		showDesktopIcons = true;
 		enableVideoWallpapers = true;
+		mutePlayback = false;
+		pausePlayback = true;
+		autostart = false;
 
 		if(configFilePath == null)
-			configFilePath = Environment.get_home_dir() + "/.Komorebi.prop";
+			configFilePath = GLib.Path.build_filename(getConfigDir(), "komorebi.prop");
 
 		if(configFile == null)
 			configFile = File.new_for_path(configFilePath);
@@ -179,9 +184,12 @@ namespace Komorebi.Utilities {
 			configKeyFile = new KeyFile ();
 
 		if(!configFile.query_exists()) {
-			print("No configuration file found. Creating one..\n");
-			updateConfigurationFile();
-			return;
+			bootstrapConfigPath();
+			if(!configFile.query_exists()) {
+				print("No configuration file found. Creating one..\n");
+				updateConfigurationFile();
+				return;
+			}
 		}
 
 		print("Reading config file..\n");
@@ -196,7 +204,7 @@ namespace Komorebi.Utilities {
 			!configKeyFile.has_key(key_file_group, "TimeTwentyFour") ||
 			!configKeyFile.has_key(key_file_group, "ShowDesktopIcons") ||
 			!configKeyFile.has_key(key_file_group, "EnableVideoWallpapers")) {
-			
+
 			print("[WARNING]: invalid configuration file found. Fixing..\n");
 			updateConfigurationFile();
 			return;
@@ -207,7 +215,39 @@ namespace Komorebi.Utilities {
 		timeTwentyFour = configKeyFile.get_boolean (key_file_group, "TimeTwentyFour");
 		showDesktopIcons = configKeyFile.get_boolean (key_file_group, "ShowDesktopIcons");
 		enableVideoWallpapers = configKeyFile.get_boolean (key_file_group, "EnableVideoWallpapers");
+		if (configKeyFile.has_key(key_file_group, "MutePlayback")) {
+			mutePlayback = configKeyFile.get_boolean(key_file_group, "MutePlayback");
+		} else {
+			mutePlayback = false;
+		}
+		if (configKeyFile.has_key(key_file_group, "PausePlayback")) {
+			pausePlayback = configKeyFile.get_boolean(key_file_group, "PausePlayback");
+		} else {
+			pausePlayback = true;
+		}
+		if (configKeyFile.has_key(key_file_group, "Autostart")) {
+			autostart = configKeyFile.get_boolean(key_file_group, "Autostart");
+		} else {
+			autostart = false;
+		}
 		fixConflicts();
+	}
+
+	/* Bootstraps the base configuration path if it doesn't exist, and detects older versions of this app */
+	public void bootstrapConfigPath() {
+		File configPath = File.new_build_filename(getConfigDir(), "wallpapers");
+		if(!configPath.query_exists())
+			configPath.make_directory_with_parents();
+
+		// If it can find an older config file, copy it to the new directory
+		File oldConfigFile = File.new_build_filename(Environment.get_home_dir(), ".Komorebi.prop");
+		if(oldConfigFile.query_exists()) {
+			print("Found config file from old version, converting it to new one...\n");
+			File destinationPath = File.new_build_filename(getConfigDir(), "komorebi.prop");
+			oldConfigFile.copy(destinationPath, FileCopyFlags.NONE);
+		}
+
+		configFile = File.new_for_path(configFilePath);
 	}
 
 	/* Updates the .prop file */
@@ -219,6 +259,9 @@ namespace Komorebi.Utilities {
 		configKeyFile.set_boolean (key_file_group, "TimeTwentyFour", timeTwentyFour);
 		configKeyFile.set_boolean (key_file_group, "ShowDesktopIcons", showDesktopIcons);
 		configKeyFile.set_boolean (key_file_group, "EnableVideoWallpapers", enableVideoWallpapers);
+		configKeyFile.set_boolean(key_file_group, "MutePlayback", mutePlayback);
+		configKeyFile.set_boolean(key_file_group, "PausePlayback", pausePlayback);
+		configKeyFile.set_boolean(key_file_group, "Autostart", autostart);
 
 		// Delete the file
 		if(configFile.query_exists())
@@ -252,14 +295,27 @@ namespace Komorebi.Utilities {
 
 		// check if the wallpaper exists
 		// also, make sure the wallpaper name is valid
-		var wallpaperPath = @"/System/Resources/Komorebi/$wallpaperName";
-		var wallpaperConfigPath = @"$wallpaperPath/config";
+		string wallpaperConfigPath = "";
+		bool wallpaperFound = false;
 
-		if(wallpaperName == null || !File.new_for_path(wallpaperPath).query_exists() ||
-			!File.new_for_path(wallpaperConfigPath).query_exists()) {
+		// Populates the wallpaper path list
+		getWallpaperPaths();
 
+		for(int i = 0; i < wallpaperPaths.length; i++) {
+			wallpaperPath = @"$(wallpaperPaths[i])/$wallpaperName";
+			wallpaperConfigPath = @"$wallpaperPath/config";
+
+			if(wallpaperName == null || !File.new_for_path(wallpaperPath).query_exists() ||
+				!File.new_for_path(wallpaperConfigPath).query_exists())
+				continue;
+
+			wallpaperFound = true;
+			break;
+		}
+
+		if(!wallpaperFound) {
 			wallpaperName = "foggy_sunny_mountain";
-			wallpaperPath = @"/System/Resources/Komorebi/$wallpaperName";
+			wallpaperPath = @"$(Config.package_datadir)/$wallpaperName";
 			wallpaperConfigPath = @"$wallpaperPath/config";
 
 			print(@"[ERROR]: got an invalid wallpaper. Setting to default: $wallpaperName\n");
@@ -326,11 +382,6 @@ namespace Komorebi.Utilities {
 
 		assetWidth = wallpaperKeyFile.get_integer ("Asset", "Width");
 		assetHeight = wallpaperKeyFile.get_integer ("Asset", "Height");
-
-		// Set GNOME's wallpaper to this
-		var wallpaperJpgPath = @"/System/Resources/Komorebi/$wallpaperName/wallpaper.jpg";
-		new GLib.Settings("org.gnome.desktop.background").set_string("picture-uri", ("file://" + wallpaperJpgPath));
-		new GLib.Settings("org.gnome.desktop.background").set_string("picture-options", "stretched");
 	}
 
 
@@ -370,8 +421,55 @@ namespace Komorebi.Utilities {
 		if(	File.new_for_path("/usr/lib/gstreamer-1.0/libgstlibav.so").query_exists() ||
 			File.new_for_path("/usr/lib64/gstreamer-1.0/libgstlibav.so").query_exists() ||
 			File.new_for_path("/usr/lib/i386-linux-gnu/gstreamer-1.0/libgstlibav.so").query_exists() ||
-			File.new_for_path("/usr/lib/x86_64-linux-gnu/gstreamer-1.0/libgstlibav.so").query_exists())
+			File.new_for_path("/usr/lib/x86_64-linux-gnu/gstreamer-1.0/libgstlibav.so").query_exists() ||
+			File.new_for_path("/usr/lib/arm-linux-gnueabihf/gstreamer-1.0/libgstlibav.so").query_exists())
 			return true;
+
+		return false;
+	}
+
+	public void enableAutostart() {
+		var desktopFileName = "org.komorebiteam.komorebi.desktop";
+		File desktopFile = File.new_build_filename(Config.datadir, "applications", desktopFileName);
+		if(!desktopFile.query_exists()) {
+			print("[WARNING] Desktop file not found, autostart won't work!");
+			return;
+		}
+
+		string[] destPaths = {Environment.get_variable("XDG_CONFIG_HOME"), GLib.Path.build_filename(Environment.get_home_dir(), ".config")};
+
+		foreach(string path in destPaths) {
+			if(path == null || !File.new_for_path(path).query_exists())
+				continue;
+
+			File destFile = File.new_build_filename(path, "autostart", desktopFileName);
+			desktopFile.copy(destFile, FileCopyFlags.NONE);
+			return;
+		}
+
+		print("[WARNING] Couldn't find any user directory config, autostart won't work!");
+	}
+
+	public void disableAutostart() {
+		var desktopFileName = "org.komorebiteam.komorebi.desktop";
+		string[] destPaths = {Environment.get_variable("XDG_CONFIG_HOME"), GLib.Path.build_filename(Environment.get_home_dir(), ".config")};
+
+		foreach(string path in destPaths) {
+			if(path == null || !File.new_for_path(path).query_exists())
+				continue;
+
+			File desktopFile = File.new_build_filename(path, "autostart", desktopFileName);
+			desktopFile.delete();
+			return;
+		}
+	}
+
+	/* A quick way to find a given arg from the args list */
+	public bool hasArg(string arg, string[] args) {
+		foreach(string s in args) {
+			if(s == arg)
+				return true;
+		}
 
 		return false;
 	}

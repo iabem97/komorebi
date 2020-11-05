@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Komorebi
+Comment=An awesome wallpaper manager!
+Keywords=wallpaper;settings; preferences;
+Icon=@datadir@/pixmaps/@projectname@/komorebi.svg
+Exec=@bindir@/@projectname@
+Terminal=false
+Type=Application
+StartupNotify=true
+Categories=GNOME;GTK;Settings;DesktopSettings;
+X-GNOME-Autostart-enabled=true

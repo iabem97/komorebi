@@ -1,4 +1,5 @@
 //
+//  Copyright (C) 2020 Komorebi Team Authors
 //  Copyright (C) 2012-2017 Abraham Masri
 //
 //  This program is free software: you can redistribute it and/or modify
@@ -122,7 +123,7 @@ namespace Komorebi.OnScreen {
             });
 
     		// Add widgets
-            closeButton.add(new Image.from_file("/System/Resources/Komorebi/close_btn.svg"));
+            closeButton.add(new Image.from_resource("/org/komorebi-team/komorebi/close_btn.svg"));
     		headerBar.pack_start(closeButton, false, false);
 
     		topBox.add(titleLabel);

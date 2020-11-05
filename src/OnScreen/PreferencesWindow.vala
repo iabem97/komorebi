@@ -1,4 +1,5 @@
 //
+//  Copyright (C) 2020 Komorebi Team Authors
 //  Copyright (C) 2016-2017 Abraham Masri
 //
 //  This program is free software: you can redistribute it and/or modify
@@ -44,8 +45,11 @@ namespace Komorebi.OnScreen {
 		Label aboutLabel = new Label("");
 
 		Gtk.CheckButton twentyFourHoursButton = new Gtk.CheckButton.with_label ("Use 24-hour time");
+		Gtk.CheckButton enableAutostartButton = new Gtk.CheckButton.with_label ("Launch Komorebi on system startup");
 		Gtk.CheckButton showDesktopIconsButton = new Gtk.CheckButton.with_label ("Show desktop icons");
 		Gtk.CheckButton enableVideoWallpapersButton = new Gtk.CheckButton.with_label ("Enable Video Wallpapers (Restarting Komorebi is required)");
+		Gtk.CheckButton mutePlaybackButton = new Gtk.CheckButton.with_label ("Mute Video playback");
+		Gtk.CheckButton pausePlaybackButton = new Gtk.CheckButton.with_label ("Pause Video playback on un-focus");
 
 		Gtk.Box bottomPreferencesBox = new Box(Orientation.HORIZONTAL, 10);
 
@@ -129,12 +133,15 @@ namespace Komorebi.OnScreen {
 
 			// Setup Widgets
 			titleLabel.set_markup("<span font='Lato Light 30px' color='white'>Komorebi</span>");
-			aboutLabel.set_markup("<span font='Lato Light 15px' color='white'>by Abraham Masri @cheesecakeufo</span>");
+			aboutLabel.set_markup("<span font='Lato Light 15px' color='white'>by Komorebi Team</span>");
 
 			// showSystemStatsButton.active = showInfoBox;
 			twentyFourHoursButton.active = timeTwentyFour;
+			enableAutostartButton.active = autostart;
 			showDesktopIconsButton.active = showDesktopIcons;
 			enableVideoWallpapersButton.active = enableVideoWallpapers;
+      		mutePlaybackButton.active = mutePlayback;
+			pausePlaybackButton.active = pausePlayback;
 
 			setWallpaperNameLabel();
 
@@ -207,7 +214,16 @@ namespace Komorebi.OnScreen {
 
 			});
 
-			showDesktopIconsButton.toggled.connect (() => { 
+			enableAutostartButton.toggled.connect (() => {
+				autostart = enableAutostartButton.active;
+				if (enableAutostartButton.active)
+					enableAutostart();
+				else
+					disableAutostart();
+				updateConfigurationFile();
+			});
+
+			showDesktopIconsButton.toggled.connect (() => {
 				showDesktopIcons = showDesktopIconsButton.active;
 				updateConfigurationFile();
 
@@ -227,6 +243,34 @@ namespace Komorebi.OnScreen {
 
 			});
 
+      mutePlaybackButton.toggled.connect(() => {
+				mutePlayback = mutePlaybackButton.active;
+				if (mutePlayback) {
+					foreach (BackgroundWindow backgroundWindow in backgroundWindows) {
+						backgroundWindow.muteVolume();
+					}
+				} else {
+					foreach (BackgroundWindow backgroundWindow in backgroundWindows) {
+						backgroundWindow.unmuteVolume();
+       		}
+				}
+				updateConfigurationFile();
+			});
+
+			pausePlaybackButton.toggled.connect(() => {
+				pausePlayback = pausePlaybackButton.active;
+				if (!pausePlayback) {
+					foreach (BackgroundWindow backgroundWindow in backgroundWindows) {
+						backgroundWindow.videoPlayback.playing = true;
+					}
+				} else {
+					foreach (BackgroundWindow backgroundWindow in backgroundWindows) {
+						backgroundWindow.videoPlayback.playing = false;
+					}
+				}
+				updateConfigurationFile();
+			});
+
 			wallpapersSelector.wallpaperChanged.connect(() => {
 				setWallpaperNameLabel();
 			});
@@ -238,7 +282,7 @@ namespace Komorebi.OnScreen {
 			titleBox.add(titleLabel);
 			titleBox.add(aboutLabel);
 
-			aboutGrid.attach(new Image.from_file("/System/Resources/Komorebi/komorebi.svg"), 0, 0, 1, 1);
+			aboutGrid.attach(new Image.from_resource("/org/komorebi-team/komorebi/komorebi.svg"), 0, 0, 1, 1);
 			aboutGrid.attach(titleBox, 1, 0, 1, 1);
 
 			bottomPreferencesBox.pack_start(donateButton);
@@ -246,11 +290,14 @@ namespace Komorebi.OnScreen {
 
 			preferencesPage.add(aboutGrid);
 			preferencesPage.add(twentyFourHoursButton);
+			preferencesPage.add(enableAutostartButton);
 			preferencesPage.add(showDesktopIconsButton);
 			preferencesPage.add(enableVideoWallpapersButton);
+      		preferencesPage.add(mutePlaybackButton);
+			preferencesPage.add(pausePlaybackButton);
 			preferencesPage.pack_end(bottomPreferencesBox);
 
-			bottomWallpapersBox.add(new Image.from_file("/System/Resources/Komorebi/info.svg"));
+			bottomWallpapersBox.add(new Image.from_resource("/org/komorebi-team/komorebi/info.svg"));
 			bottomWallpapersBox.add(currentWallpaperLabel);
 
 			if(!canPlayVideos()) {
